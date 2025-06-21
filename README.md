@@ -22,4 +22,4 @@
 ## ⚡ Quick Start
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/<your-username>/ethereum-rpc-healthcheck/main/sepolia_health.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/fzaamir/ethereum-rpc-healthcheck/main/sepolia_health.sh)
