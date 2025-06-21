@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+REQUIRED_TOOLS=(curl jq awk bc)
+MISSING=()
+for t in "${REQUIRED_TOOLS[@]}"; do
+  command -v "$t" >/dev/null 2>&1 || MISSING+=("$t")
+done
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+  echo "Installing missing tools: ${MISSING[*]}"
+  if command -v apt >/dev/null 2>&1; then
+    apt update -qq
+    apt install -y -qq "${MISSING[@]}"
+  else
+    echo "Unsupported package manager. Please install: ${MISSING[*]}"
+    exit 1
+  fi
+fi
+
 N=10
 PAUSE=1
 ip=$(ip -4 route get 1 | awk '{for(i=1;i<=NF;i++)if($i=="src"){print $(i+1);exit}}' 2>/dev/null || echo 127.0.0.1)
 EXEC="http://${ip}:8545"
 BEACON="http://${ip}:3500"
 TIMEOUT=3
-for c in curl jq awk bc; do command -v "$c" &>/dev/null || { echo "missing $c"; exit 0; }; done
 if command -v tput &>/dev/null; then g=$(tput setaf 2) r=$(tput setaf 1) c=$(tput setaf 6) b=$(tput bold) x=$(tput sgr0); else g= r= c= b= x=; fi
 jr(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' "$EXEC"; }
 br(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' "$BEACON/eth/v1/node/health"; }
