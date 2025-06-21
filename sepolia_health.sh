@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REQUIRED_TOOLS=(curl jq awk bc)
+REQUIRED_TOOLS=(curl jq gawk bc)
 MISSING=()
 for t in "${REQUIRED_TOOLS[@]}"; do
   command -v "$t" >/dev/null 2>&1 || MISSING+=("$t")
@@ -10,16 +10,16 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
   echo "Installing missing tools: ${MISSING[*]}"
   if command -v apt >/dev/null 2>&1; then
     apt update -qq
-    apt install -y -qq "${MISSING[@]}"
+    DEBIAN_FRONTEND=noninteractive apt install -y -qq "${MISSING[@]}"
   else
-    echo "Unsupported package manager. Please install: ${MISSING[*]}"
+    echo "Unsupported package manager. Please install manually: ${MISSING[*]}"
     exit 1
   fi
 fi
 
 N=10
 PAUSE=1
-ip=$(ip -4 route get 1 | awk '{for(i=1;i<=NF;i++)if($i=="src"){print $(i+1);exit}}' 2>/dev/null || echo 127.0.0.1)
+ip=$(ip -4 route get 1 | gawk '{for(i=1;i<=NF;i++)if($i=="src"){print $(i+1);exit}}' 2>/dev/null || echo 127.0.0.1)
 EXEC="http://${ip}:8545"
 BEACON="http://${ip}:3500"
 TIMEOUT=3
@@ -27,8 +27,8 @@ if command -v tput &>/dev/null; then g=$(tput setaf 2) r=$(tput setaf 1) c=$(tpu
 jr(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' "$EXEC"; }
 br(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' "$BEACON/eth/v1/node/health"; }
 json(){ curl -m "$TIMEOUT" -s "$1" | jq -r "$2"; }
-sum(){ awk '{s+=$1}END{print s}'; }
-stats(){ readarray -t a; printf '%s %s %s %s\n' "$(printf '%s\n' "${a[@]}"|sort -n|head -1)" "$(printf '%s\n' "${a[@]}"|awk '{s+=$1}END{printf "%.3f",s/NR}')" "$(printf '%s\n' "${a[@]}"|sort -n|tail -1)" "${#a[@]}"; }
+sum(){ gawk '{s+=$1}END{print s}'; }
+stats(){ readarray -t a; printf '%s %s %s %s\n' "$(printf '%s\n' "${a[@]}"|sort -n|head -1)" "$(printf '%s\n' "${a[@]}"|gawk '{s+=$1}END{printf "%.3f",s/NR}')" "$(printf '%s\n' "${a[@]}"|sort -n|tail -1)" "${#a[@]}"; }
 declare -a e_lat p_lat
 e_ok=0; p_ok=0
 for((i=1;i<=N;i++)); do
