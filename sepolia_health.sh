@@ -40,6 +40,7 @@ fi
 jr(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' "$EXEC"; }
 br(){ curl -m "$TIMEOUT" -s -o /dev/null -w '%{time_total}' "$BEACON/eth/v1/node/health"; }
 json(){ curl -m "$TIMEOUT" -s "$1" | jq -r "$2"; }
+
 stats(){
   readarray -t a
   printf '%s %s %s %s\n' \
@@ -65,8 +66,14 @@ read p_min p_avg p_max p_cnt < <(printf '%s\n' "${p_lat[@]}" | stats)
 
 e_block_hex=$(json "$EXEC" '.result' 2>/dev/null || echo 0x0)
 e_block=$((16#${e_block_hex#0x}))
+if [[ -z "$e_block" || "$e_block" == "0" ]]; then
+  echo -e "\n${r}[ERROR] Cannot reach Execution RPC at $EXEC${x}"
+fi
 
 p_slot=$(json "$BEACON/eth/v1/beacon/headers/head" '.data.header.message.slot' 2>/dev/null || echo 0)
+if [[ -z "$p_slot" || "$p_slot" == "0" ]]; then
+  echo -e "${r}[ERROR] Cannot reach Beacon REST at $BEACON${x}"
+fi
 
 p_health_code=$(json "$BEACON/eth/v1/node/health" '.data|tonumber? // .data.health_status' 2>/dev/null || echo -1)
 case $p_health_code in
@@ -81,6 +88,7 @@ printf "${b}Execution RPC${x}  : %s\n" "$EXEC"
 printf "  success          : %s/%s\n" "$e_ok" "$N"
 printf "  latency s        : min %.3f  avg %.3f  max %.3f\n" "${e_min:-nan}" "${e_avg:-nan}" "${e_max:-nan}"
 printf "  latest block     : %'d\n" "$e_block"
+
 printf "\n${b}Beacon REST${x}    : %s\n" "$BEACON"
 printf "  success          : %s/%s\n" "$p_ok" "$N"
 printf "  latency s        : min %.3f  avg %.3f  max %.3f\n" "${p_min:-nan}" "${p_avg:-nan}" "${p_max:-nan}"
@@ -92,5 +100,4 @@ printf "  health           : %s%s%s\n" \
 [[ $e_ok -eq $N && $p_ok -eq $N && $p_health == OK ]] && status="${g}PASS${x}" || status="${r}ATTENTION${x}"
 printf "\nOverall : %b\n" "$status"
 printf "===============================================================\n"
-
 exit 0
